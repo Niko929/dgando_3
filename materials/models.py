@@ -1,7 +1,7 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from users.models import User
-from materials.models import Course, Lesson
 
 
 class Course(models.Model):
@@ -9,6 +9,7 @@ class Course(models.Model):
     title = models.CharField(_('title'), max_length=255)
     preview = models.ImageField(_('preview'), upload_to='courses/previews/', blank=True, null=True)
     description = models.TextField(_('description'), blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null = True, blank=True)
 
     class Meta:
         verbose_name = _('course')
