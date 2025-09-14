@@ -1,8 +1,8 @@
 from rest_framework import viewsets, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Course, Lesson
-from .serializers import CourseSerializer, LessonSerializer
+from .models import Course, Lesson, Subscription
+from .serializers import CourseSerializer, LessonSerializer, SubscriptionSerializer
 from .permissions import IsModerator, IsOwner
 from rest_framework.permissions import IsAuthenticated
 
@@ -71,3 +71,10 @@ class LessonDestroyAPIView(generics.DestroyAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated, IsOwner]
+
+class SubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Subscription.objects.filter(user=self.request.user, is_active=True)

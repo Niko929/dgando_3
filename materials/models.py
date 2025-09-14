@@ -98,3 +98,18 @@ class Payment(models.Model):
             raise ValidationError("Можно выбрать только курс ИЛИ урок, но не оба одновременно.")
         if not self.course and not self.lesson:
             raise ValidationError("Необходимо выбрать либо курс, либо урок.")
+
+class Subscription(models.Model):
+    objects = None
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Пользователь")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='subscriptions', verbose_name="Курс")
+    subscribed_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата подписки")
+    is_active = models.BooleanField(default=True, verbose_name="Активная подписка")
+
+    class Meta:
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
+        unique_together = ['user', 'course']  # Одна подписка на пользователя и курс
+
+    def __str__(self):
+        return f"{self.user.email} - {self.course.title}"

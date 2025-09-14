@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions
 from rest_framework import serializers
-from .models import Course, Lesson
+from .models import Course, Lesson, Subscription
+
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,5 +30,11 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = '__all__'
+        read_only_fields = ['user', 'subscribed_at']
 
 
