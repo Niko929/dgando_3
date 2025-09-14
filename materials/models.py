@@ -31,6 +31,7 @@ class Lesson(models.Model):
     description = models.TextField(_('description'), blank=True)
     preview = models.ImageField(_('preview'), upload_to='lessons/previews/', blank=True, null=True)
     video_url = models.URLField(_('video URL'), blank=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
         verbose_name = _('lesson')
