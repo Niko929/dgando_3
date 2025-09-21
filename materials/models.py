@@ -113,3 +113,34 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.course.title}"
+
+
+class Product(models.Model):
+    stripe_product_id = models.CharField(max_length=100, blank=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+class Price(models.Model):
+    stripe_price_id = models.CharField(max_length=100, blank=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='usd')
+
+    def __str__(self):
+        return f"{self.product.name} - ${self.amount}"
+
+class Payments(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
+    stripe_session_id = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='usd')
+    status = models.CharField(max_length=20, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.course.title} - {self.status}"

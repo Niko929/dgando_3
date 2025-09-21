@@ -1,22 +1,32 @@
 from rest_framework import generics, permissions
 from rest_framework import serializers
-from .models import Course, Lesson, Subscription
+from .models import Course, Lesson, Subscription, Payments
+from .models import Product, Price, Payment
 
+
+class PriceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Price
+        fields = '__all__'
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    prices = PriceSerializer(many=True, read_only=True)
+    class Meta:
+        model = Product
+        fields = '__all__'
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payments
+        fields = '__all__'
+        read_only_fields = ['user', 'stripe_session_id', 'status']
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = [
-            'id',
-            'title',
-            'description',
-            'preview_image',
-            'price',
-            'lessons_count',
-            'lessons',  # Добавляем поле с уроками
-            'created_at',
-            'updated_at'
-        ]
+        fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
 
 
@@ -26,7 +36,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'lessons_count']
+        fields = '__all__'
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
