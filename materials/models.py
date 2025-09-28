@@ -10,7 +10,7 @@ class Course(models.Model):
     preview = models.ImageField(_('preview'), upload_to='courses/previews/', blank=True, null=True)
     description = models.TextField(_('description'), blank=True)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null = True, blank=True)
-
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     class Meta:
         verbose_name = _('course')
         verbose_name_plural = _('courses')
@@ -40,6 +40,18 @@ class Lesson(models.Model):
     def __str__(self):
         return self.title
 
+class Payments(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
+    stripe_session_id = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='usd')
+    status = models.CharField(max_length=20, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.course.title} - {self.status}"
 
 class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [
@@ -132,15 +144,3 @@ class Price(models.Model):
     def __str__(self):
         return f"{self.product.name} - ${self.amount}"
 
-class Payments(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
-    stripe_session_id = models.CharField(max_length=100)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3, default='usd')
-    status = models.CharField(max_length=20, default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.user.email} - {self.course.title} - {self.status}"

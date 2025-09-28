@@ -41,6 +41,13 @@ class CourseViewSet(viewsets.ModelViewSet):
         serializer = LessonSerializer(lessons, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'], url_name='subscribe')
+    def subscribe(self, request, pk=None):
+        course = self.get_object()
+        lessons = course.lessons.all()
+        serializer = LessonSerializer(lessons, many=True)
+        return Response(serializer.data)
+
 class LessonListAPIView(generics.ListAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
@@ -83,7 +90,7 @@ class SubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
         return Subscription.objects.filter(user=self.request.user, is_active=True)
 
 
-tripe_service = StripeService()
+stripe_service = StripeService()
 
 
 @api_view(['POST'])
