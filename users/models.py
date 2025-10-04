@@ -10,7 +10,6 @@ class User(AbstractUser):
     phone = models.CharField(_('phone'), max_length=15, blank=True, null=True)
     city = models.CharField(_('city'), max_length=100, blank=True, null=True)
     avatar = models.ImageField(_('avatar'), upload_to='users/avatars/', blank=True, null=True)
-    payments = models.ForeignKey()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

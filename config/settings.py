@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     'drf_yasg',
     'corsheaders',
     'drf_spectacular',
-    'payments',
 ]
 
 MIDDLEWARE = [
