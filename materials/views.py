@@ -1,20 +1,16 @@
-import json
-from django.urls import reverse
 import stripe
-from django.http import JsonResponse, HttpResponse
-from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from rest_framework import viewsets, generics, status
-from rest_framework.decorators import action, api_view
-from rest_framework.response import Response
-from config import settings
-from .models import Course, Lesson, Subscription, Payment
-from .serializers import CourseSerializer, LessonSerializer, SubscriptionSerializer
-from .permissions import IsModerator, IsOwner
+from django.conf import settings
+from rest_framework import status, viewsets, generics
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
-from .services.stripe_service import StripeService
-
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from .models import Payment, Course, Lesson, Subscription
+from .permissions import IsModerator, IsOwner
+from .serializers import PaymentSerializer, CreatePaymentSerializer, CourseSerializer, LessonSerializer, \
+    SubscriptionSerializer
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -96,223 +92,142 @@ class SubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
         return Subscription.objects.filter(user=self.request.user, is_active=True)
 
 
-stripe_service = StripeService()
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
-
-@require_http_methods(["POST"])
-def create_course_product(request):
-    """
-    Создание курса и регистрация его в Stripe как продукта
-    """
-    try:
-        data = json.loads(request.body)
-
-        # Создаем курс в нашей базе
-        course = Course.objects.create(
-            name=data['name'],
-            description=data.get('description', ''),
-            price=data['price']
-        )
-
-        # Создаем продукт и цену в Stripe
-        stripe_data = StripeService.create_product_with_price(
-            name=course.name,
-            description=course.description,
-            amount=float(course.price)
-        )
-
-        # Сохраняем Stripe IDs в курс
-        course.stripe_product_id = stripe_data['product'].id
-        course.stripe_price_id = stripe_data['price'].id
-        course.save()
-
-        return JsonResponse({
-            'course_id': course.id,
-            'stripe_product_id': course.stripe_product_id,
-            'stripe_price_id': course.stripe_price_id
-        })
-
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@require_http_methods(["POST"])
+@swagger_auto_schema(
+    method='post',
+    operation_description="Создание платежной сессии для курса",
+    request_body=CreatePaymentSerializer,
+    responses={
+        200: openapi.Response(
+            description="Сессия создана успешно",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'session_id': openapi.Schema(type=openapi.TYPE_STRING),
+                    'url': openapi.Schema(type=openapi.TYPE_STRING),
+                }
+            )
+        ),
+        400: "Ошибка в данных запроса",
+        404: "Курс не найден"
+    }
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_checkout_session(request):
     """
-    Создание сессии оплаты для курса
+    Создает сессию Stripe Checkout для оплаты курса
     """
-    try:
-        data = json.loads(request.body)
-        course_id = data.get('course_id')
+    serializer = CreatePaymentSerializer(data=request.data)
+    if serializer.is_valid():
+        course = get_object_or_404(Course, id=serializer.validated_data['course_id'])
 
-        course = get_object_or_404(Course, id=course_id, is_active=True)
-
-        # URL для редиректа после оплаты
-        success_url = request.build_absolute_uri(
-            reverse('payment_success') + f'?session_id={{CHECKOUT_SESSION_ID}}&course_id={course_id}'
-        )
-        from audioop import reverse
-        cancel_url = request.build_absolute_uri(
-            reverse('payment_cancel') + f'?course_id={course_id}'
-        )
-
-        # Создаем сессию оплаты в Stripe
-        session = StripeService.create_checkout_session(
-            price_id=course.stripe_price_id,
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata={
-                'course_id': str(course.id),
-                'user_id': str(request.user.id)
-            }
-        )
-
-        # Сохраняем информацию о платеже
-        payment = Payment.objects.create(
-            user=request.user,
-            course=course,
-            stripe_session_id=session.id,
-            amount=course.price,
-            status='pending'
-        )
-
-        return JsonResponse({
-            'session_id': session.id,
-            'url': session.url,
-            'payment_id': payment.id
-        })
-
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-def payment_success(request):
-    """
-    Страница успешной оплаты
-    """
-    session_id = request.GET.get('session_id')
-    course_id = request.GET.get('course_id')
-
-    if session_id:
         try:
-            # Получаем информацию о сессии из Stripe
-            session = StripeService.retrieve_session(session_id)
+            session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': course.currency.lower(),
+                        'product_data': {
+                            'name': course.title,
+                            'description': course.description,
+                        },
+                        'unit_amount': int(course.price * 100),  # Конвертируем в центы
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=serializer.validated_data['success_url'],
+                cancel_url=serializer.validated_data['cancel_url'],
+                customer_email=request.user.email,
+                metadata={
+                    'course_id': course.id,
+                    'user_id': request.user.id
+                }
+            )
 
-            # Обновляем статус платежа
-            payment = Payment.objects.get(stripe_session_id=session_id)
-            payment.status = 'succeeded'
-            payment.stripe_payment_intent_id = session.payment_intent
-            payment.save()
+            # Создаем запись о платеже
+            Payment.objects.create(
+                user=request.user,
+                course=course,
+                amount=course.price,
+                currency=course.currency,
+                stripe_payment_intent_id=session.payment_intent,
+                status='pending'
+            )
 
-            # Здесь можно добавить логику предоставления доступа к курсу
-            # Например, добавить курс в профиль пользователя
-
-            context = {
-                'course': payment.course,
-                'payment': payment
-            }
-
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Оплата прошла успешно!',
-                'course_name': payment.course.name,
-                'amount': float(payment.amount)
+            return Response({
+                'session_id': session.id,
+                'url': session.url
             })
 
-        except Payment.DoesNotExist:
-            return JsonResponse({'error': 'Платеж не найден'}, status=400)
+        except stripe.error.StripeError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    return JsonResponse({'error': 'Неверные параметры'}, status=400)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-def payment_cancel(request):
+@swagger_auto_schema(
+    method='get',
+    operation_description="Получить историю платежей пользователя",
+    responses={200: PaymentSerializer(many=True)}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def payment_history(request):
     """
-    Страница отмены оплаты
+    Возвращает историю платежей текущего пользователя
     """
-    course_id = request.GET.get('course_id')
-
-    if course_id:
-        course = get_object_or_404(Course, id=course_id)
-
-        return JsonResponse({
-            'status': 'canceled',
-            'message': 'Оплата отменена',
-            'course_name': course.name
-        })
-
-    return JsonResponse({'error': 'Курс не найден'}, status=400)
+    payments = Payment.objects.filter(user=request.user).order_by('-created_at')
+    serializer = PaymentSerializer(payments, many=True)
+    return Response(serializer.data)
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
+@api_view(['POST'])
 def stripe_webhook(request):
     """
-    Webhook для обработки событий от Stripe
+    Эндпоинт для вебхуков Stripe
     """
     payload = request.body
-    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
 
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
-    except ValueError as e:
-        return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError as e:
-        return HttpResponse(status=400)
+    except ValueError:
+        return Response({'error': 'Invalid payload'}, status=400)
+    except stripe.error.SignatureVerificationError:
+        return Response({'error': 'Invalid signature'}, status=400)
 
-    # Обрабатываем события
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
+    # Обработка событий
+    if event['type'] == 'payment_intent.succeeded':
+        payment_intent = event['data']['object']
+        handle_payment_success(payment_intent)
+    elif event['type'] == 'payment_intent.payment_failed':
+        payment_intent = event['data']['object']
+        handle_payment_failure(payment_intent)
 
-        try:
-            payment = Payment.objects.get(stripe_session_id=session.id)
-            payment.status = 'succeeded'
-            payment.stripe_payment_intent_id = session.payment_intent
-            payment.save()
-
-            # Предоставляем доступ к курсу
-            grant_course_access(payment.user, payment.course)
-
-        except Payment.DoesNotExist:
-            pass
-
-    elif event['type'] == 'checkout.session.expired':
-        session = event['data']['object']
-
-        try:
-            payment = Payment.objects.get(stripe_session_id=session.id)
-            payment.status = 'expired'
-            payment.save()
-        except Payment.DoesNotExist:
-            pass
-
-    return HttpResponse(status=200)
+    return Response({'success': True})
 
 
-def grant_course_access(user, course):
-    """
-    Функция для предоставления доступа к курсу
-    """
-    # Здесь реализуйте логику предоставления доступа
-    # Например, добавление курса в список доступных пользователю
-    print(f"Предоставлен доступ к курсу {course.name} для пользователя {user.username}")
+def handle_payment_success(payment_intent):
+    """Обработка успешного платежа"""
+    try:
+        payment = Payment.objects.get(stripe_payment_intent_id=payment_intent['id'])
+        payment.status = 'completed'
+        payment.save()
+        # Здесь можно добавить логику предоставления доступа к курсу
+    except Payment.DoesNotExist:
+        pass
 
 
-def get_courses(request):
-    """
-    Получение списка доступных курсов
-    """
-    courses = Course.objects.filter(is_active=True)
-    courses_data = []
-
-    for course in courses:
-        courses_data.append({
-            'id': course.id,
-            'name': course.name,
-            'description': course.description,
-            'price': float(course.price),
-            'stripe_price_id': course.stripe_price_id
-        })
-
-    return JsonResponse({'courses': courses_data})
+def handle_payment_failure(payment_intent):
+    """Обработка неудачного платежа"""
+    try:
+        payment = Payment.objects.get(stripe_payment_intent_id=payment_intent['id'])
+        payment.status = 'failed'
+        payment.save()
+    except Payment.DoesNotExist:
+        pass

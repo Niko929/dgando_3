@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework import serializers
-from .models import Course, Lesson, Subscription, Payments
+from .models import Course, Lesson, Subscription
 from .models import Product, Price, Payment
 
 
@@ -19,7 +19,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Payments
+        model = Payment
         fields = '__all__'
         read_only_fields = ['user', 'stripe_session_id', 'status']
 
@@ -46,5 +46,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         model = Subscription
         fields = '__all__'
         read_only_fields = ['user', 'subscribed_at']
-
+class CreatePaymentSerializer(serializers.Serializer):
+    course_id = serializers.IntegerField()
+    success_url = serializers.URLField()
+    cancel_url = serializers.URLField()
 

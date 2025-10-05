@@ -5,19 +5,22 @@ from users.models import User
 
 
 class Course(models.Model):
-    objects = None
-    title = models.CharField(_('title'), max_length=255)
-    preview = models.ImageField(_('preview'), upload_to='courses/previews/', blank=True, null=True)
-    description = models.TextField(_('description'), blank=True)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null = True, blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    title = models.CharField(max_length=200, verbose_name="Название курса")
+    description = models.TextField(verbose_name="Описание")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена")
+    currency = models.CharField(max_length=3, default='USD', verbose_name="Валюта")
+    duration = models.IntegerField(verbose_name="Длительность (часов)")
+    is_active = models.BooleanField(default=True, verbose_name="Активный")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
-        verbose_name = _('course')
-        verbose_name_plural = _('courses')
+        verbose_name = "Курс"
+        verbose_name_plural = "Курсы"
+        db_table = 'courses'
 
     def __str__(self):
         return self.title
-
 
 class Lesson(models.Model):
     objects = None
@@ -40,76 +43,45 @@ class Lesson(models.Model):
     def __str__(self):
         return self.title
 
-class Payments(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
-    stripe_session_id = models.CharField(max_length=100)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3, default='usd')
-    status = models.CharField(max_length=20, default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.user.email} - {self.course.title} - {self.status}"
-
 class Payment(models.Model):
-    PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Наличные'),
-        ('transfer', 'Перевод на счет'),
+    STATUS_CHOICES = [
+        ('pending', 'Ожидание'),
+        ('completed', 'Завершено'),
+        ('failed', 'Неудачно'),
+        ('refunded', 'Возвращено'),
     ]
 
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='payments',
-        verbose_name='Пользователь'
-    )
-    payment_date = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name='Дата оплаты'
+        related_name='user_payments',  # Уникальный related_name
+        verbose_name="Пользователь"
     )
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='payments',
-        verbose_name='Оплаченный курс'
+        related_name='course_payments',
+        verbose_name="Курс"
     )
-    lesson = models.ForeignKey(
-        Lesson,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='payments',
-        verbose_name='Оплаченный урок'
-    )
-    amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name='Сумма оплаты'
-    )
-    payment_method = models.CharField(
-        max_length=10,
-        choices=PAYMENT_METHOD_CHOICES,
-        verbose_name='Способ оплаты'
-    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Сумма")
+    currency = models.CharField(max_length=3, default='USD', verbose_name="Валюта")
+    stripe_payment_intent_id = models.CharField(max_length=100, unique=True, verbose_name="ID платежа Stripe")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Платеж'
-        verbose_name_plural = 'Платежи'
-        ordering = ['-payment_date']
+        verbose_name = "Платеж"
+        verbose_name_plural = "Платежи"
+        db_table = 'payments'
+        indexes = [
+            models.Index(fields=['stripe_payment_intent_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
-        return f"Платеж {self.user} - {self.amount} руб."
-
-    def clean(self):
-        from django.core.exceptions import ValidationError
-        if self.course and self.lesson:
-            raise ValidationError("Можно выбрать только курс ИЛИ урок, но не оба одновременно.")
-        if not self.course and not self.lesson:
-            raise ValidationError("Необходимо выбрать либо курс, либо урок.")
+        return f"Платеж {self.id} - {self.user.username} - {self.amount}"
 
 class Subscription(models.Model):
     objects = None
