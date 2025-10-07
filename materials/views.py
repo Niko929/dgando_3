@@ -4,13 +4,15 @@ from rest_framework import status, viewsets, generics
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from .models import Payment, Course, Lesson, Subscription
 from .permissions import IsModerator, IsOwner
 from .serializers import PaymentSerializer, CreatePaymentSerializer, CourseSerializer, LessonSerializer, \
     SubscriptionSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.contrib.auth.decorators import login_required
+from .tasks import send_course_update_notification
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -231,3 +233,18 @@ def handle_payment_failure(payment_intent):
         payment.save()
     except Payment.DoesNotExist:
         pass
+
+@login_required
+def update_course_materials(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    subscribers_emails = Subscription.objects.filter(
+        course=course,
+        is_active=True
+    ).values_list('user__email', flat=True)
+
+    # Отправляем уведомления асинхронно
+    send_course_update_notification.delay(
+        course.title,
+        list(subscribers_emails)
+    )
+    return render(request, 'course_updated.html', {'course': course})
