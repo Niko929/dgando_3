@@ -11,6 +11,13 @@ class Course(models.Model):
     currency = models.CharField(max_length=3, default='USD', verbose_name="Валюта")
     duration = models.IntegerField(verbose_name="Длительность (часов)")
     is_active = models.BooleanField(default=True, verbose_name="Активный")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name="Владелец"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

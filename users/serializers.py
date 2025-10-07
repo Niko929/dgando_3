@@ -8,8 +8,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['username'] = user.username
-        token['email'] = user.email
+        token['email'] = user.email  # Убрали username, т.к. его нет в модели
         return token
 
 
@@ -19,7 +18,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'password2', 'first_name', 'last_name', 'phone')
+        fields = ('id', 'email', 'password', 'password2', 'first_name', 'last_name', 'phone')  # Убрали username
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -32,8 +31,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
-        user = User.objects.create_user(**validated_data)
-        user.set_password(validated_data["password"])
+        password = validated_data.pop('password')
+        user = User.objects.create(**validated_data)
+        user.set_password(password)
         user.save()
         return user
 
@@ -42,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-        'id', 'username', 'email', 'first_name', 'last_name', 'phone', 'avatar', 'is_staff', 'is_active', 'date_joined')
+        'id', 'email', 'first_name', 'last_name', 'phone', 'avatar', 'is_staff', 'is_active', 'date_joined')
         read_only_fields = ('id', 'date_joined')
 
 
