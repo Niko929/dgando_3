@@ -8,30 +8,44 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['email'] = user.email  # Убрали username, т.к. его нет в модели
+        token["email"] = user.email  # Убрали username, т.к. его нет в модели
         return token
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password = serializers.CharField(
+        write_only=True, required=True, validators=[validate_password]
+    )
     password2 = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'password', 'password2', 'first_name', 'last_name', 'phone')  # Убрали username
+        fields = (
+            "id",
+            "email",
+            "password",
+            "password2",
+            "first_name",
+            "last_name",
+            "phone",
+        )  # Убрали username
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        if attrs["password"] != attrs["password2"]:
+            raise serializers.ValidationError(
+                {"password": "Password fields didn't match."}
+            )
 
-        if User.objects.filter(email=attrs['email']).exists():
-            raise serializers.ValidationError({"email": "User with this email already exists."})
+        if User.objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError(
+                {"email": "User with this email already exists."}
+            )
 
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('password2')
-        password = validated_data.pop('password')
+        validated_data.pop("password2")
+        password = validated_data.pop("password")
         user = User.objects.create(**validated_data)
         user.set_password(password)
         user.save()
@@ -42,14 +56,23 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-        'id', 'email', 'first_name', 'last_name', 'phone', 'avatar', 'is_staff', 'is_active', 'date_joined')
-        read_only_fields = ('id', 'date_joined')
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "avatar",
+            "is_staff",
+            "is_active",
+            "date_joined",
+        )
+        read_only_fields = ("id", "date_joined")
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'phone', 'avatar')
+        fields = ("first_name", "last_name", "phone", "avatar")
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -58,6 +81,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     new_password2 = serializers.CharField(required=True)
 
     def validate(self, attrs):
-        if attrs['new_password'] != attrs['new_password2']:
-            raise serializers.ValidationError({"new_password": "Password fields didn't match."})
+        if attrs["new_password"] != attrs["new_password2"]:
+            raise serializers.ValidationError(
+                {"new_password": "Password fields didn't match."}
+            )
         return attrs

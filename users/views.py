@@ -10,7 +10,7 @@ from .serializers import (
     UserRegistrationSerializer,
     UserSerializer,
     UserUpdateSerializer,
-    ChangePasswordSerializer
+    ChangePasswordSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsAdminOrOwner
 
@@ -29,10 +29,10 @@ class UserRegistrationView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        return Response({
-            'user': UserSerializer(user).data,
-            'message': 'User created successfully'
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {"user": UserSerializer(user).data, "message": "User created successfully"},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -41,35 +41,40 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrOwner]
 
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action == "create":
             return [AllowAny()]
         return [IsAuthenticated(), IsAdminOrOwner()]
 
     def get_serializer_class(self):
-        if self.action in ['update', 'partial_update']:
+        if self.action in ["update", "partial_update"]:
             return UserUpdateSerializer
         return UserSerializer
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def change_password(self, request, pk=None):
         user = self.get_object()
         serializer = ChangePasswordSerializer(data=request.data)
 
         if serializer.is_valid():
-            if not user.check_password(serializer.validated_data['old_password']):
-                return Response({"old_password": ["Wrong password."]}, status=status.HTTP_400_BAD_REQUEST)
+            if not user.check_password(serializer.validated_data["old_password"]):
+                return Response(
+                    {"old_password": ["Wrong password."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-            user.set_password(serializer.validated_data['new_password'])
+            user.set_password(serializer.validated_data["new_password"])
             user.save()
 
             # Обновляем сессию аутентификации
             update_session_auth_hash(request, user)
 
-            return Response({"message": "Password updated successfully."}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Password updated successfully."}, status=status.HTTP_200_OK
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def me(self, request):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)

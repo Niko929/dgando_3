@@ -14,29 +14,27 @@ class StripeService:
         """
         try:
             product = stripe.Product.create(
-                name=name,
-                description=description,
-                metadata=metadata or {}
+                name=name, description=description, metadata=metadata or {}
             )
             return product
         except stripe.error.StripeError as e:
             raise ValidationError(f"Ошибка создания продукта в Stripe: {str(e)}")
 
     @staticmethod
-    def create_price(product_id, unit_amount, currency='usd', recurring=None):
+    def create_price(product_id, unit_amount, currency="usd", recurring=None):
         """
         Создание цены в Stripe
         https://stripe.com/docs/api/prices/create
         """
         try:
             price_data = {
-                'product': product_id,
-                'unit_amount': int(unit_amount * 100),  # Конвертируем в центы
-                'currency': currency,
+                "product": product_id,
+                "unit_amount": int(unit_amount * 100),  # Конвертируем в центы
+                "currency": currency,
             }
 
             if recurring:
-                price_data['recurring'] = recurring
+                price_data["recurring"] = recurring
 
             price = stripe.Price.create(**price_data)
             return price
@@ -51,12 +49,14 @@ class StripeService:
         """
         try:
             session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                line_items=[{
-                    'price': price_id,
-                    'quantity': 1,
-                }],
-                mode='payment',
+                payment_method_types=["card"],
+                line_items=[
+                    {
+                        "price": price_id,
+                        "quantity": 1,
+                    }
+                ],
+                mode="payment",
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata=metadata or {},
@@ -76,14 +76,11 @@ class StripeService:
             raise ValidationError(f"Ошибка получения сессии: {str(e)}")
 
     @staticmethod
-    def create_product_with_price(name, description, amount, currency='usd'):
+    def create_product_with_price(name, description, amount, currency="usd"):
         """
         Упрощенный метод: создает продукт и цену за один вызов
         """
         product = StripeService.create_product(name, description)
         price = StripeService.create_price(product.id, amount, currency)
 
-        return {
-            'product': product,
-            'price': price
-        }
+        return {"product": product, "price": price}

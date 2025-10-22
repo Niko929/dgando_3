@@ -3,9 +3,9 @@ from django.db.models.signals import post_migrate
 
 
 class UsersConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'users'
-    verbose_name = 'Пользователи'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "users"
+    verbose_name = "Пользователи"
 
     def ready(self):
         # Импортируем внутри метода, чтобы избежать циклических импортов
@@ -13,12 +13,17 @@ class UsersConfig(AppConfig):
 
         def create_moderator_group(sender, **kwargs):
             """Создает группу модераторов после миграций"""
-            group, created = Group.objects.get_or_create(name='moderators')
+            group, created = Group.objects.get_or_create(name="moderators")
 
             if created:
                 # Добавляем базовые разрешения
                 permissions = Permission.objects.filter(
-                    codename__in=['view_course', 'change_course', 'view_lesson', 'change_lesson']
+                    codename__in=[
+                        "view_course",
+                        "change_course",
+                        "view_lesson",
+                        "change_lesson",
+                    ]
                 )
                 group.permissions.set(permissions)
 

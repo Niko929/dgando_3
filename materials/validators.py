@@ -23,11 +23,11 @@ class ExternalLinkValidator:
 
             # Разрешенные YouTube домены
             youtube_domains = [
-                'youtube.com',
-                'www.youtube.com',
-                'youtu.be',
-                'www.youtu.be',
-                'm.youtube.com'
+                "youtube.com",
+                "www.youtube.com",
+                "youtu.be",
+                "www.youtu.be",
+                "m.youtube.com",
             ]
 
             # Проверяем домен
@@ -36,11 +36,11 @@ class ExternalLinkValidator:
 
             # Проверяем шаблоны YouTube ссылок
             youtube_patterns = [
-                r'^https?://(www\.)?youtube\.com/',
-                r'^https?://youtu\.be/',
-                r'^https?://(www\.)?youtube\.com/embed/',
-                r'^https?://(www\.)?youtube\.com/v/',
-                r'^https?://(www\.)?youtube\.com/watch\?v=',
+                r"^https?://(www\.)?youtube\.com/",
+                r"^https?://youtu\.be/",
+                r"^https?://(www\.)?youtube\.com/embed/",
+                r"^https?://(www\.)?youtube\.com/v/",
+                r"^https?://(www\.)?youtube\.com/watch\?v=",
             ]
 
             return any(re.match(pattern, url.lower()) for pattern in youtube_patterns)
