@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import update_session_auth_hash
 from .models import User
@@ -12,7 +12,7 @@ from .serializers import (
     UserUpdateSerializer,
     ChangePasswordSerializer,
 )
-from .permissions import IsOwnerOrReadOnly, IsAdminOrOwner
+from .permissions import IsAdminOrOwner
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):

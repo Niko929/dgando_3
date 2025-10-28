@@ -1,4 +1,3 @@
-from rest_framework import generics, permissions
 from rest_framework import serializers
 from .models import Course, Lesson, Subscription
 from .models import Product, Price, Payment

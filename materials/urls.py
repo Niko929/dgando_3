@@ -9,7 +9,6 @@ from materials.views import (
     LessonUpdateAPIView,
     LessonDestroyAPIView,
     SubscriptionViewSet,
-    create_checkout_session,
     payment_history,
     stripe_webhook,
 )

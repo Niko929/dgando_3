@@ -1,9 +1,10 @@
-from django.test import TestCase
-from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 from django.contrib.auth import get_user_model
 from .models import Course, Lesson, Subscription
+from django.test import TestCase
+from django.urls import reverse
+
 
 User = get_user_model()
 
@@ -229,3 +230,27 @@ class CoursePaginationTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 3)
+
+
+class BasicTests(TestCase):
+    def setUp(self):
+        # Создаем тестовые данные
+        self.user = User.objects.create_user(
+            username="testuser", password="testpass123", email="test@example.com"
+        )
+
+    def test_home_page_status_code(self):
+        response = self.client.get(reverse("index"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_about_page_status_code(self):
+        response = self.client.get(reverse("about"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_services_page_status_code(self):
+        response = self.client.get(reverse("services"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_contacts_page_status_code(self):
+        response = self.client.get(reverse("contacts"))
+        self.assertEqual(response.status_code, 200)
